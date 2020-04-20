@@ -15,5 +15,5 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("current time: ", t.Round(time.Second))
-	fmt.Println("exact time: ", t.Local())
+	fmt.Println("exact time: ", t.Round(time.Nanosecond))
 }
