@@ -1,6 +1,6 @@
 package hw04_lru_cache //nolint:golint,stylecheck
 
-// List - двухсвязный список #
+// List - интерфейс - двухсвязный список.
 type List interface {
 	Len() int                          // длина списка
 	Front() *ListItem                  // первый Item
@@ -11,7 +11,7 @@ type List interface {
 	MoveToFront(i *ListItem)           // переместить элемент в начало
 }
 
-// Item - элемент списка #
+// ListItem - элемент списка.
 type ListItem struct {
 	Value interface{}
 	Next  *ListItem
@@ -28,22 +28,22 @@ func NewList() List {
 	return &list{}
 }
 
-// Len - возвращает длину списка #
+// Len - возвращает длину списка.
 func (l list) Len() int {
 	return l.len
 }
 
-// Front - возвращает указатель на первый элемент списка#
+// Front - возвращает указатель на первый элемент списка.
 func (l list) Front() *ListItem {
 	return l.first
 }
 
-// Back - возвращает указатель на последний элемент списка#
+// Back - возвращает указатель на последний элемент списка.
 func (l list) Back() *ListItem {
 	return l.last
 }
 
-// PushFront - добавляет в начало списка элемент #
+// PushFront - добавляет в начало списка элемент.
 func (l *list) PushFront(v interface{}) *ListItem {
 	newFirst := ListItem{Value: v}
 	if l.first != nil {
@@ -59,7 +59,7 @@ func (l *list) PushFront(v interface{}) *ListItem {
 	return &newFirst
 }
 
-// PushBack - добавляет в конец списка элемент #
+// PushBack - добавляет в конец списка элемент.
 func (l *list) PushBack(v interface{}) *ListItem {
 	newLast := ListItem{Value: v}
 	if l.last != nil {
@@ -76,7 +76,7 @@ func (l *list) PushBack(v interface{}) *ListItem {
 	return &newLast
 }
 
-// Remove - удаляет элемент из списка #
+// Remove - удаляет элемент из списка.
 func (l *list) Remove(i *ListItem) {
 	switch {
 	// Если известен предудыщий и следующий - сошьем их
@@ -100,6 +100,7 @@ func (l *list) Remove(i *ListItem) {
 	l.len--
 }
 
+// MoveToFront - перемещает элемент в начало списка.
 func (l *list) MoveToFront(i *ListItem) {
 	if l.first == i {
 		return
