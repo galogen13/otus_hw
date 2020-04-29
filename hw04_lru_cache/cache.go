@@ -29,6 +29,7 @@ func NewCache(capacity int) Cache {
 
 func (lru *lruCache) Set(itemKey Key, value interface{}) bool {
 	lru.m.Lock()
+	defer lru.m.Unlock()
 	listItem, ok := lru.items[itemKey]
 	if ok {
 		cacheItem := listItem.Value.(*cacheItem)
@@ -45,26 +46,25 @@ func (lru *lruCache) Set(itemKey Key, value interface{}) bool {
 		newListItem := lru.queue.PushFront(newItem)
 		lru.items[itemKey] = newListItem
 	}
-	lru.m.Unlock()
 
 	return ok
 }
 
 func (lru *lruCache) Get(itemKey Key) (value interface{}, isExist bool) {
 	lru.m.Lock()
+	defer lru.m.Unlock()
 	listItem, ok := lru.items[itemKey]
 	if ok {
 		lru.queue.PushFront(listItem)
 		value = listItem.Value.(*cacheItem).value
 		isExist = true
 	}
-	lru.m.Unlock()
 	return
 }
 
 func (lru *lruCache) Clear() {
 	lru.m.Lock()
+	defer lru.m.Unlock()
 	lru.items = make(map[Key]*ListItem)
 	lru.queue = NewList()
-	lru.m.Unlock()
 }
