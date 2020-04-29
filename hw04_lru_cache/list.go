@@ -102,16 +102,18 @@ func (l *list) Remove(i *ListItem) {
 
 // MoveToFront - перемещает элемент в начало списка.
 func (l *list) MoveToFront(i *ListItem) {
-	if l.first == i {
-		return
-	}
+	l.PushFront(i.Value)
+	l.Remove(i)
+	// if l.first == i {
+	// 	return
+	// }
 
-	if i.Next == nil {
-		l.last = i.Prev
-		l.last.Next = nil
-	}
-	l.first.Prev = i
-	i.Next = l.first
-	i.Prev = nil
-	l.first = i
+	// if i.Next == nil {
+	// 	l.last = i.Prev
+	// 	l.last.Next = nil
+	// }
+	// l.first.Prev = i
+	// i.Next = l.first
+	// i.Prev = nil
+	// l.first = i
 }
