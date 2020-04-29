@@ -55,7 +55,7 @@ func (lru *lruCache) Get(itemKey Key) (value interface{}, isExist bool) {
 	defer lru.m.Unlock()
 	listItem, ok := lru.items[itemKey]
 	if ok {
-		lru.queue.PushFront(listItem)
+		lru.queue.MoveToFront(listItem)
 		value = listItem.Value.(*cacheItem).value
 		isExist = true
 	}
