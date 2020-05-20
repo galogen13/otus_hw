@@ -26,10 +26,16 @@ func takeAll(done In, valueStream Out) Out {
 			case <-done:
 				return
 			case value, ok := <-valueStream:
-				if !ok {
+				select {
+				case <-done:
 					return
+				default:
+					if !ok {
+						return
+					}
+					takeStream <- value
 				}
-				takeStream <- value
+
 			}
 		}
 	}()
