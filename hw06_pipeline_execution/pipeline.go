@@ -35,7 +35,6 @@ func takeAll(done In, valueStream Out) Out {
 					}
 					takeStream <- value
 				}
-
 			}
 		}
 	}()
