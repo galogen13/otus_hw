@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -36,14 +35,14 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 
 	file, err := os.Open(fromPath)
 	if err != nil {
-		return fmt.Errorf("failed to open file info: %v", err)
+		return err
 	}
 
 	defer file.Close()
 
 	fi, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("failed to get file info: %v", err)
+		return err
 	}
 
 	if !fi.Mode().IsRegular() {
@@ -76,7 +75,7 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 
 	resFile, _ := os.Create(toPath)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
+		return err
 	}
 
 	barReader := bar.NewProxyWriter(resFile)
@@ -84,7 +83,7 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 	for offset < fileSize {
 		_, err := file.Seek(offset, 0)
 		if err != nil {
-			return fmt.Errorf("failed to seek: %v", err)
+			return err
 		}
 		bufSize := int64(math.Min(float64(bufSize), float64(fileSize-offset)))
 		buf := make([]byte, bufSize)
@@ -94,12 +93,12 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to read: %v", err)
+			return err
 		}
 
 		_, err = barReader.Write(buf)
 		if err != nil {
-			return fmt.Errorf("failed to write: %v", err)
+			return err
 		}
 		bar.Write()
 	}
