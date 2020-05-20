@@ -18,7 +18,7 @@ var (
 )
 
 // Copy .
-func Copy(fromPath string, toPath string, offset, limit int64) error { //nolint:golint,stylecheck
+func Copy(fromPath string, toPath string, offset, limit int64) error { //nolint:funlen
 	const bufSize int64 = 1024 * 1024
 
 	if fromPath == "" {
