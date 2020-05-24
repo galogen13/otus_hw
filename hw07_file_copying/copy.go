@@ -64,6 +64,11 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 		fileSize = limit + offset
 	}
 
+	resFile, _ := os.Create(toPath)
+	if err != nil {
+		return err
+	}
+
 	tmpl := "{{counters . }} {{percent . }} \n"
 	bar := pb.New64(limit)
 	bar.SetTemplateString(tmpl)
@@ -73,12 +78,6 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 	bar.Set(pb.Static, true)
 	bar.Start()
 	bar.Write()
-
-	resFile, _ := os.Create(toPath)
-	if err != nil {
-		return err
-	}
-
 	barReader := bar.NewProxyWriter(resFile)
 
 	for offset < fileSize {
