@@ -78,7 +78,7 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 	bar.Set(pb.Static, true)
 	bar.Start()
 	bar.Write()
-	barReader := bar.NewProxyWriter(resFile)
+	barWriter := bar.NewProxyWriter(resFile)
 
 	for offset < fileSize {
 		_, err := file.Seek(offset, 0)
@@ -86,20 +86,13 @@ func Copy(fromPath string, toPath string, offset, limit int64) error {
 			return err
 		}
 		bufSize := int64(math.Min(float64(bufSize), float64(fileSize-offset)))
-		buf := make([]byte, bufSize)
-		read, err := file.Read(buf)
-		offset += int64(read)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
 
-		_, err = barReader.Write(buf)
+		written, err := io.CopyN(barWriter, file, bufSize)
 		if err != nil {
 			return err
 		}
+		offset += written
+
 		bar.Write()
 	}
 	resFile.Close()
