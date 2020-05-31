@@ -24,7 +24,7 @@ var mutex = &sync.Mutex{}
 var result *DomainStat
 
 var linePool = sync.Pool{
-	New: func() interface{} { return []byte{} },
+	New: func() interface{} { return &[]byte{} },
 }
 
 // GetDomainStat .
@@ -43,16 +43,16 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 
 	go func() {
 		wg := &sync.WaitGroup{}
-
+		var line = linePool.Get().(*[]byte)
 		for {
-			line := linePool.Get().([]byte)
-			line, err := reader.ReadBytes('\n')
+			var err error
+			*line, err = reader.ReadBytes('\n')
 			if err == io.EOF {
-				if len(line) == 0 {
+				if len(*line) == 0 {
 					break
 				}
 				wg.Add(1)
-				go getDomainStatInLine(line, domain, errCh, doneCh, wg)
+				go getDomainStatInLine(*line, domain, errCh, doneCh, wg)
 				break
 			}
 			if err != nil {
@@ -61,7 +61,7 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 			}
 
 			wg.Add(1)
-			go getDomainStatInLine(line, domain, errCh, doneCh, wg)
+			go getDomainStatInLine(*line, domain, errCh, doneCh, wg)
 		}
 		wg.Wait()
 		close(waitCh)
