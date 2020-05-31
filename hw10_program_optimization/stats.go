@@ -1,14 +1,15 @@
 package hw10_program_optimization //nolint:golint,stylecheck
 
 import (
-	"encoding/json"
-	"fmt"
+	"bufio"
+	"errors"
 	"io"
-	"io/ioutil"
-	"regexp"
 	"strings"
+	"sync"
 )
 
+// User .
+//easyjson:json
 type User struct {
 	ID       int
 	Name     string
@@ -19,49 +20,94 @@ type User struct {
 	Address  string
 }
 
+// DomainStat .
 type DomainStat map[string]int
 
+var ErrEmptyDomain = errors.New("empty domain")
+
+var mutex = &sync.Mutex{}
+
+var result *DomainStat
+
+// GetDomainStat .
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %s", err)
+	result = &DomainStat{}
+
+	if domain == "" {
+		return nil, ErrEmptyDomain
 	}
-	return countDomains(u, domain)
+
+	reader := bufio.NewReader(r)
+
+	waitCh := make(chan struct{})
+	errCh := make(chan error)
+	doneCh := make(chan struct{})
+
+	go func() {
+		wg := &sync.WaitGroup{}
+
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
+				if line == "" {
+					break
+				}
+				wg.Add(1)
+				go getDomainStatInLine(line, domain, errCh, doneCh, wg)
+				break
+			}
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			wg.Add(1)
+			go getDomainStatInLine(line, domain, errCh, doneCh, wg)
+		}
+		wg.Wait()
+		close(waitCh)
+	}()
+
+	select {
+	case <-waitCh:
+		close(errCh)
+		close(doneCh)
+		break
+	case err := <-errCh:
+		close(doneCh)
+		return nil, err
+	}
+	return *result, nil
 }
 
-type users [100_000]User
+func getDomainStatInLine(line, domain string, errCh chan error, done <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := ioutil.ReadAll(r)
+	select {
+	case <-done:
+		return
+	default:
+	}
+
+	user := User{}
+	err := user.UnmarshalJSON([]byte(line))
 	if err != nil {
+		select {
+		case <-done:
+		default:
+			errCh <- err
+		}
 		return
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
-		}
-		result[i] = user
+	if user.Email == "" {
+		return
 	}
-	return
-}
 
-func countDomains(u users, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
-		if err != nil {
-			return nil, err
-		}
-
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
-		}
+	if contain := strings.Contains(user.Email, "."+domain); contain {
+		domainName := strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
+		mutex.Lock()
+		(*result)[domainName]++
+		mutex.Unlock()
 	}
-	return result, nil
 }
