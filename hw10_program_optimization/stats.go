@@ -11,13 +11,7 @@ import (
 // User .
 //easyjson:json
 type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
+	Email string
 }
 
 // DomainStat .
@@ -28,6 +22,10 @@ var ErrEmptyDomain = errors.New("empty domain")
 var mutex = &sync.Mutex{}
 
 var result *DomainStat
+
+var linePool = sync.Pool{
+	New: func() interface{} { return []byte{} },
+}
 
 // GetDomainStat .
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
@@ -47,9 +45,10 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 		wg := &sync.WaitGroup{}
 
 		for {
-			line, err := reader.ReadString('\n')
+			line := linePool.Get().([]byte)
+			line, err := reader.ReadBytes('\n')
 			if err == io.EOF {
-				if line == "" {
+				if len(line) == 0 {
 					break
 				}
 				wg.Add(1)
@@ -80,7 +79,7 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	return *result, nil
 }
 
-func getDomainStatInLine(line, domain string, errCh chan error, done <-chan struct{}, wg *sync.WaitGroup) {
+func getDomainStatInLine(line []byte, domain string, errCh chan error, done <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	select {
@@ -90,7 +89,7 @@ func getDomainStatInLine(line, domain string, errCh chan error, done <-chan stru
 	}
 
 	user := User{}
-	err := user.UnmarshalJSON([]byte(line))
+	err := user.UnmarshalJSON(line)
 	if err != nil {
 		select {
 		case <-done:
