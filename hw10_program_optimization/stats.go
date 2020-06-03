@@ -5,31 +5,23 @@ import (
 	"errors"
 	"io"
 	"strings"
-	"sync"
 )
 
-// User .
 //easyjson:json
 type User struct {
 	Email string
 }
 
-// DomainStat .
 type DomainStat map[string]int
 
-var ErrEmptyDomain = errors.New("empty domain")
+var (
+	ErrEmptyDomain = errors.New("empty domain")
+)
 
-var mutex = &sync.Mutex{}
-
-var result *DomainStat
-
-var linePool = sync.Pool{
-	New: func() interface{} { return &[]byte{} },
-}
-
-// GetDomainStat .
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	result = &DomainStat{}
+	var (
+		result = DomainStat{}
+	)
 
 	if domain == "" {
 		return nil, ErrEmptyDomain
@@ -37,76 +29,42 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 
 	reader := bufio.NewReader(r)
 
-	waitCh := make(chan struct{})
-	errCh := make(chan error)
-	doneCh := make(chan struct{})
-
-	go func() {
-		wg := &sync.WaitGroup{}
-		var line = linePool.Get().(*[]byte)
-		for {
-			var err error
-			*line, err = reader.ReadBytes('\n')
-			if err == io.EOF {
-				if len(*line) == 0 {
-					break
-				}
-				wg.Add(1)
-				go getDomainStatInLine(*line, domain, errCh, doneCh, wg)
-				break
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err == io.EOF {
+			if len(line) == 0 {
+				return result, nil
 			}
+			result, err = getDomainStatInLine(line, domain, result)
 			if err != nil {
-				errCh <- err
-				return
+				return nil, err
 			}
-
-			wg.Add(1)
-			go getDomainStatInLine(*line, domain, errCh, doneCh, wg)
+			return result, nil
 		}
-		wg.Wait()
-		close(waitCh)
-	}()
+		if err != nil {
+			return nil, err
+		}
 
-	select {
-	case <-waitCh:
-		close(errCh)
-		close(doneCh)
-		break
-	case err := <-errCh:
-		close(doneCh)
-		return nil, err
+		result, err = getDomainStatInLine(line, domain, result)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return *result, nil
 }
 
-func getDomainStatInLine(line []byte, domain string, errCh chan error, done <-chan struct{}, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	select {
-	case <-done:
-		return
-	default:
-	}
-
+func getDomainStatInLine(line []byte, domain string, result DomainStat) (DomainStat, error) {
 	user := User{}
 	err := user.UnmarshalJSON(line)
 	if err != nil {
-		select {
-		case <-done:
-		default:
-			errCh <- err
-		}
-		return
+		return nil, err
 	}
 
 	if user.Email == "" {
-		return
+		return result, nil
 	}
 
 	if contain := strings.Contains(user.Email, "."+domain); contain {
-		domainName := strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
-		mutex.Lock()
-		(*result)[domainName]++
-		mutex.Unlock()
+		result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]++
 	}
+	return result, nil
 }
