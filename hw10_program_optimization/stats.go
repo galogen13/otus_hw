@@ -1,67 +1,70 @@
 package hw10_program_optimization //nolint:golint,stylecheck
 
 import (
-	"encoding/json"
-	"fmt"
+	"bufio"
+	"errors"
 	"io"
-	"io/ioutil"
-	"regexp"
 	"strings"
 )
 
+//easyjson:json
 type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
+	Email string
 }
 
 type DomainStat map[string]int
 
+var (
+	ErrEmptyDomain = errors.New("empty domain")
+)
+
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %s", err)
-	}
-	return countDomains(u, domain)
-}
+	var (
+		result = DomainStat{}
+	)
 
-type users [100_000]User
-
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := ioutil.ReadAll(r)
-	if err != nil {
-		return
+	if domain == "" {
+		return nil, ErrEmptyDomain
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
+	reader := bufio.NewReader(r)
+
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err == io.EOF {
+			if len(line) == 0 {
+				return result, nil
+			}
+			result, err = getDomainStatInLine(line, domain, result)
+			if err != nil {
+				return nil, err
+			}
+			return result, nil
 		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
 		if err != nil {
 			return nil, err
 		}
 
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		result, err = getDomainStatInLine(line, domain, result)
+		if err != nil {
+			return nil, err
 		}
+	}
+}
+
+func getDomainStatInLine(line []byte, domain string, result DomainStat) (DomainStat, error) {
+	user := User{}
+	err := user.UnmarshalJSON(line)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.Email == "" {
+		return result, nil
+	}
+
+	if contain := strings.Contains(user.Email, "."+domain); contain {
+		result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]++
 	}
 	return result, nil
 }
